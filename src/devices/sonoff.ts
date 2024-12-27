@@ -25,6 +25,7 @@ import {
 } from '../lib/modernExtend';
 import * as reporting from '../lib/reporting';
 import * as tuya from '../lib/tuya';
+import * as ota from '../lib/ota';
 import {DefinitionWithExtend, Fz, KeyValue, KeyValueAny, ModernExtend, Tz} from '../lib/types';
 import * as utils from '../lib/utils';
 
@@ -683,7 +684,7 @@ const definitions: DefinitionWithExtend[] = [
         vendor: 'SONOFF',
         description: 'Zigbee smart switch (no neutral)',
         extend: [onOff()],
-        ota: true,
+        ota: ota.zigbeeOTA,
         configure: async (device, coordinatorEndpoint) => {
             // Unbind genPollCtrl to prevent device from sending checkin message.
             // Zigbee-herdsmans responds to the checkin message which causes the device
@@ -703,7 +704,7 @@ const definitions: DefinitionWithExtend[] = [
         vendor: 'SONOFF',
         description: 'Zigbee smart switch (no neutral)',
         extend: [onOff()],
-        ota: true,
+        ota: ota.zigbeeOTA,
         configure: async (device, coordinatorEndpoint) => {
             // Unbind genPollCtrl to prevent device from sending checkin message.
             // Zigbee-herdsmans responds to the checkin message which causes the device
@@ -925,7 +926,7 @@ const definitions: DefinitionWithExtend[] = [
         vendor: 'SONOFF',
         description: '15A Zigbee smart plug',
         extend: [onOff({powerOnBehavior: false, skipDuplicateTransaction: true})],
-        ota: true,
+        ota: ota.zigbeeOTA,
     },
     {
         zigbeeModel: ['DONGLE-E_R'],
@@ -979,7 +980,7 @@ const definitions: DefinitionWithExtend[] = [
                 voltageReportingConfig: {min: 3600, max: 7200, change: 0},
             }),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
     },
     {
         zigbeeModel: ['SNZB-02P'],
@@ -1007,7 +1008,7 @@ const definitions: DefinitionWithExtend[] = [
             }),
             ewelinkBattery(),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
     },
     {
         zigbeeModel: ['SNZB-03P'],
@@ -1035,7 +1036,7 @@ const definitions: DefinitionWithExtend[] = [
             }),
             ewelinkBattery(),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
     },
     {
         zigbeeModel: ['SNZB-05P'],
@@ -1076,7 +1077,7 @@ const definitions: DefinitionWithExtend[] = [
                 access: 'STATE',
             }),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
     },
     {
         zigbeeModel: ['TRVZB'],
@@ -1117,6 +1118,8 @@ const definitions: DefinitionWithExtend[] = [
                     valveMotorRunningVoltage: {ID: 0x6007, type: Zcl.DataType.UINT16},
                     valveOpeningDegree: {ID: 0x600b, type: Zcl.DataType.UINT8},
                     valveClosingDegree: {ID: 0x600c, type: Zcl.DataType.UINT8},
+                    temperatureTriggerOfValveOpening: {ID: 0x6011, type: Zcl.DataType.INT16},
+                    temperatureControlMode: {ID: 0x6013, type: Zcl.DataType.ENUM8},
                 },
                 commands: {},
                 commandsResponse: {},
@@ -1226,10 +1229,36 @@ const definitions: DefinitionWithExtend[] = [
                 valueStep: 1.0,
                 unit: '%',
             }),
+            numeric({
+                name: 'temperature_trigger_of_valve_opening',
+                cluster: 'customSonoffTrvzb',
+                attribute: 'temperatureTriggerOfValveOpening',
+                entityCategory: 'config',
+                description:
+                    'It is only effective in static temperature control mode. ' +
+                    'If the temperature control accuracy is set to -1°C (the default), ' +
+                    'the TRVZB valve will close when the room temperature reaches 26°C and open when it drops to 25°C. ' +
+                    'Alternatively, if the temperature control accuracy is selected as -0.4°C, the valve will close at 26°C and open at 25.6°C.' +
+                    'Note: Only version v1.2.2 or higher is supported.',
+                valueMin: -1.0,
+                valueMax: -0.2,
+                valueStep: 0.2,
+                unit: '℃',
+                scale: 100,
+            }),
+            enumLookup({
+                name: 'temperature_control_mode',
+                lookup: {'Static Temperature Control Mode': 0x01},
+                cluster: 'customSonoffTrvzb',
+                attribute: 'temperatureControlMode',
+                description: 'Temperature control mode of a temperature control valve.' + 
+                    'Note: Only version v1.2.2 or higher is supported.',
+                entityCategory: 'config',
+            }),
             sonoffExtend.weeklySchedule(),
             customTimeResponse('1970_UTC'),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(1);
             await reporting.bind(endpoint, coordinatorEndpoint, ['hvacThermostat']);
@@ -1289,7 +1318,7 @@ const definitions: DefinitionWithExtend[] = [
             sonoffExtend.cyclicTimedIrrigation(),
             sonoffExtend.cyclicQuantitativeIrrigation(),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(1);
             await reporting.bind(endpoint, coordinatorEndpoint, ['genPowerCfg', 'genOnOff']);
@@ -1317,7 +1346,7 @@ const definitions: DefinitionWithExtend[] = [
             }),
             sonoffExtend.inchingControlSet(),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(1);
             await reporting.bind(endpoint, coordinatorEndpoint, ['genOnOff']);
@@ -1381,7 +1410,7 @@ const definitions: DefinitionWithExtend[] = [
             sonoffExtend.externalSwitchTriggerMode(),
             sonoffExtend.inchingControlSet(),
         ],
-        ota: true,
+        ota: ota.zigbeeOTA,
         configure: async (device, coordinatorEndpoint) => {
             const endpoint = device.getEndpoint(1);
             await reporting.bind(endpoint, coordinatorEndpoint, ['genOnOff', 'customClusterEwelink']);
@@ -1395,7 +1424,7 @@ const definitions: DefinitionWithExtend[] = [
         vendor: 'SONOFF',
         description: 'Zigbee Smart one-channel wall switch (type 120).',
         exposes: [],
-        ota: true,
+        ota: ota.zigbeeOTA,
         extend: [
             deviceEndpoints({endpoints: {l1: 1}}),
             onOff(),
@@ -1432,7 +1461,7 @@ const definitions: DefinitionWithExtend[] = [
         vendor: 'SONOFF',
         description: 'Zigbee Smart two-channel wall switch (type 120).',
         exposes: [],
-        ota: true,
+        ota: ota.zigbeeOTA,
         extend: [
             deviceEndpoints({endpoints: {l1: 1, l2: 2}}),
             onOff({endpointNames: ['l1', 'l2']}),
@@ -1473,7 +1502,7 @@ const definitions: DefinitionWithExtend[] = [
         vendor: 'SONOFF',
         description: 'Zigbee Smart three-channel wall switch (type 120).',
         exposes: [],
-        ota: true,
+        ota: ota.zigbeeOTA,
         extend: [
             deviceEndpoints({endpoints: {l1: 1, l2: 2, l3: 3}}),
             onOff({endpointNames: ['l1', 'l2', 'l3']}),
